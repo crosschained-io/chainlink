@@ -2055,6 +2055,20 @@ func (_m *ChainScopedConfig) KeeperDefaultTransactionQueueDepth() uint32 {
 	return r0
 }
 
+// KeeperGasPriceBufferPercent provides a mock function with given fields:
+func (_m *ChainScopedConfig) KeeperGasPriceBufferPercent() uint32 {
+	ret := _m.Called()
+
+	var r0 uint32
+	if rf, ok := ret.Get(0).(func() uint32); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(uint32)
+	}
+
+	return r0
+}
+
 // KeeperMaximumGracePeriod provides a mock function with given fields:
 func (_m *ChainScopedConfig) KeeperMaximumGracePeriod() int64 {
 	ret := _m.Called()
