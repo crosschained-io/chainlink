@@ -209,12 +209,11 @@ func setChainSpecificConfigDefaultSets() {
 	optimismMainnet.balanceMonitorBlockDelay = 0
 	optimismMainnet.blockHistoryEstimatorBlockHistorySize = 0 // Force an error if someone set GAS_UPDATER_ENABLED=true by accident; we never want to run the block history estimator on optimism
 	optimismMainnet.ethTxResendAfterThreshold = 15 * time.Second
-	optimismMainnet.finalityDepth = 1    // Sequencer offers absolute finality as long as no re-org longer than 20 blocks occurs on main chain this event would require special handling (new txm)
-	optimismMainnet.gasBumpThreshold = 0 // Never bump gas on optimism
-	optimismMainnet.gasEstimatorMode = "Optimism"
+	optimismMainnet.finalityDepth = 1             // Sequencer offers absolute finality as long as no re-org longer than 20 blocks occurs on main chain this event would require special handling (new txm)
+	optimismMainnet.gasBumpThreshold = 0          // Never bump gas on optimism
+	optimismMainnet.gasEstimatorMode = "Optimism" //TODO how/when to swap Optimism2?
 	optimismMainnet.headTrackerHistoryDepth = 10
 	optimismMainnet.headTrackerSamplingInterval = 1 * time.Second
-	optimismMainnet.linkContractAddress = "" // TBD
 	optimismMainnet.linkContractAddress = "0x350a791Bfc2C21F9Ed5d10980Dad2e2638ffa7f6"
 	optimismMainnet.minIncomingConfirmations = 1
 	optimismMainnet.minRequiredOutgoingConfirmations = 0
