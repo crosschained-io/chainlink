@@ -223,7 +223,7 @@ func (client *client) BlockByNumber(ctx context.Context, number *big.Int) (*type
 }
 
 func (client *client) HeadByNumber(ctx context.Context, number *big.Int) (head *Head, err error) {
-	hex := toBlockNumArg(number)
+	hex := ToBlockNumArg(number)
 	err = client.pool.CallContext(ctx, &head, "eth_getBlockByNumber", hex, false)
 	if err != nil {
 		return nil, err
@@ -236,7 +236,7 @@ func (client *client) HeadByNumber(ctx context.Context, number *big.Int) (head *
 	return
 }
 
-func toBlockNumArg(number *big.Int) string {
+func ToBlockNumArg(number *big.Int) string {
 	if number == nil {
 		return "latest"
 	}

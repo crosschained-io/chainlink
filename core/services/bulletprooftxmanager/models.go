@@ -70,6 +70,10 @@ type EthTx struct {
 
 	PipelineTaskRunID uuid.NullUUID
 	MinConfirmations  cnull.Uint32
+
+	// Simulate if set to true will cause this eth_tx to be simulated before
+	// initial send and aborted on revert
+	Simulate bool
 }
 
 func (e EthTx) GetError() error {

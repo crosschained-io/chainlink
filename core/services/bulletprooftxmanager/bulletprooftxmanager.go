@@ -21,6 +21,7 @@ import (
 	"github.com/smartcontractkit/chainlink/core/utils"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	gethTypes "github.com/ethereum/go-ethereum/core/types"
 	exchainutils "github.com/okex/exchain-ethereum-compatible/utils"
 	"github.com/pkg/errors"
@@ -300,12 +301,12 @@ func (b *BulletproofTxManager) CreateEthTransaction(db *gorm.DB, newTx NewTx) (e
 			return err
 		}
 		res := tx.Raw(`
-INSERT INTO eth_txes (from_address, to_address, encoded_payload, value, gas_limit, state, created_at, meta, subject, evm_chain_id, min_confirmations, pipeline_task_run_id)
+INSERT INTO eth_txes (from_address, to_address, encoded_payload, value, gas_limit, state, created_at, meta, subject, evm_chain_id, min_confirmations, pipeline_task_run_id, simulate)
 VALUES (
-?,?,?,?,?,'unstarted',NOW(),?,?,?,?,?
+?,?,?,?,?,'unstarted',NOW(),?,?,?,?,?,?
 )
 RETURNING "eth_txes".*
-`, newTx.FromAddress, newTx.ToAddress, newTx.EncodedPayload, value, newTx.GasLimit, newTx.Meta, newTx.Strategy.Subject(), b.chainID.String(), newTx.MinConfirmations, newTx.PipelineTaskRunID).Scan(&etx)
+`, newTx.FromAddress, newTx.ToAddress, newTx.EncodedPayload, value, newTx.GasLimit, newTx.Meta, newTx.Strategy.Subject(), b.chainID.String(), newTx.MinConfirmations, newTx.PipelineTaskRunID, newTx.Strategy.Simulate()).Scan(&etx)
 		err = res.Error
 		if err != nil {
 			return errors.Wrap(err, "BulletproofTxManager#CreateEthTransaction failed to insert eth_tx")
@@ -468,6 +469,27 @@ func sendTransaction(ctx context.Context, ethClient eth.Client, a EthTxAttempt, 
 		return nil
 	}
 	return eth.NewSendError(err)
+}
+
+// simulateTransaction pretends to "send" the transaction using eth_call
+// returns error on revert
+func simulateTransaction(ctx context.Context, ethClient eth.Client, a EthTxAttempt, e EthTx) error {
+	ctx, cancel := eth.DefaultQueryCtx(ctx)
+	defer cancel()
+
+	// See: https://github.com/ethereum/go-ethereum/blob/acdf9238fb03d79c9b1c20c2fa476a7e6f4ac2ac/ethclient/gethclient/gethclient.go#L193
+	callArg := map[string]interface{}{
+		"from":     e.FromAddress,
+		"to":       &e.ToAddress,
+		"gas":      hexutil.Uint64(e.GasLimit),         // TODO: hexutil.Uint64(a.ChainSpecificGasLimit),
+		"gasPrice": (*hexutil.Big)(a.GasPrice.ToInt()), // FIXME: How does this play with EIP-1559?
+		"value":    (*hexutil.Big)(e.Value.ToInt()),
+		"data":     hexutil.Bytes(e.EncodedPayload),
+	}
+	// TODO: Test to see if it reverts on insufficient eth since that might need to be handled differently
+	var b hexutil.Bytes
+	baseErr := ethClient.CallContext(ctx, &b, "eth_call", callArg, eth.ToBlockNumArg(nil)) // TODO: include block number?
+	return errors.Wrap(baseErr, "transaction simulation using eth_call failed")
 }
 
 // sendEmptyTransaction sends a transaction with 0 Eth and an empty payload to the burn address

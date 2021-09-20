@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+#### Transaction Simulation
+
+Chainlink now supports transaction simulation for FM and OCR jobs. When this is enabled, transactions will be simulated using `eth_call` before initial send. If the transaction would revert, the tx is marked as errored without ever having to broadcast on-chain. 
+
+This can add a tiny bit of latency (guaranteed <= 2s) and will add marginally more load to the eth client, since it adds an extra call for every transaction sent. However, it may help to save gas in some cases especially during periods of high demand by avoiding unnecessary reverts (due to outdated round etc).
+
+This option is EXPERIMENTAL and disabled by default. For nops who want to play with aggressive settings to minimise gas costs, especially on mainnet, it can be enabled using the following ENV vars:
+
+`FM_SIMULATE_TRANSACTIONs=true`
+`OCR_SIMULATE_TRANSACTIONS=true`
+
+Use at your own risk.
+
+#### Misc
+
 Add support for OKEx/ExChain.
 
 Chainlink now supports more than one primary eth node per chain. Requests are round-robined.
