@@ -29,8 +29,8 @@ before(async () => {
     "src/v0.5/tests/GetterSetter.sol:GetterSetter",
     roles.defaultAccount,
   );
-  operatorFactory = await ethers.getContractFactory("Operator", roles.defaultAccount);
-  linkTokenFactory = await ethers.getContractFactory("LinkToken", roles.defaultAccount);
+  operatorFactory = await ethers.getContractFactory("src/v0.7/Operator.sol:Operator", roles.defaultAccount);
+  linkTokenFactory = await ethers.getContractFactory("src/v0.4/LinkToken.sol:LinkToken", roles.defaultAccount);
 });
 
 describe("ChainlinkClientTestHelper", () => {

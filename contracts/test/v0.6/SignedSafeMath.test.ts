@@ -10,7 +10,10 @@ let concreteSignedSafeMathFactory: ContractFactory;
 before(async () => {
   const personas: Personas = (await getUsers()).personas;
   defaultAccount = personas.Default;
-  concreteSignedSafeMathFactory = await ethers.getContractFactory("ConcreteSignedSafeMath", defaultAccount);
+  concreteSignedSafeMathFactory = await ethers.getContractFactory(
+    "src/v0.6/tests/ConcreteSignedSafeMath.sol:ConcreteSignedSafeMath",
+    defaultAccount,
+  );
 });
 
 describe("SignedSafeMath", () => {

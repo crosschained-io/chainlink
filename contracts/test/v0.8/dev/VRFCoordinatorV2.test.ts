@@ -30,7 +30,7 @@ describe("VRFCoordinatorV2", () => {
   let c: config;
 
   beforeEach(async () => {
-    let accounts = await ethers.getSigners();
+    const accounts = await ethers.getSigners();
     owner = accounts[0];
     subOwner = accounts[1];
     subOwnerAddress = await subOwner.getAddress();
@@ -38,22 +38,28 @@ describe("VRFCoordinatorV2", () => {
     random = accounts[3];
     randomAddress = await random.getAddress();
     oracle = accounts[4];
-    let ltFactory = await ethers.getContractFactory("LinkToken", accounts[0]);
+    const ltFactory = await ethers.getContractFactory("src/v0.4/LinkToken.sol:LinkToken", accounts[0]);
     linkToken = await ltFactory.deploy();
-    let bhFactory = await ethers.getContractFactory("BlockhashStore", accounts[0]);
+    const bhFactory = await ethers.getContractFactory("src/v0.6/dev/BlockhashStore.sol:BlockhashStore", accounts[0]);
     blockHashStore = await bhFactory.deploy();
-    let mockAggregatorV3Factory = await ethers.getContractFactory(
+    const mockAggregatorV3Factory = await ethers.getContractFactory(
       "src/v0.7/tests/MockV3Aggregator.sol:MockV3Aggregator",
       accounts[0],
     );
     mockLinkEth = await mockAggregatorV3Factory.deploy(0, linkEth);
-    let vrfCoordinatorV2Factory = await ethers.getContractFactory("VRFCoordinatorV2", accounts[0]);
+    const vrfCoordinatorV2Factory = await ethers.getContractFactory(
+      "src/v0.8/dev/VRFCoordinatorV2.sol:VRFCoordinatorV2",
+      accounts[0],
+    );
     vrfCoordinatorV2 = await vrfCoordinatorV2Factory.deploy(
       linkToken.address,
       blockHashStore.address,
       mockLinkEth.address,
     );
-    let vrfCoordinatorV2TestHelperFactory = await ethers.getContractFactory("VRFCoordinatorV2TestHelper", accounts[0]);
+    const vrfCoordinatorV2TestHelperFactory = await ethers.getContractFactory(
+      "src/v0.8/tests/VRFCoordinatorV2TestHelper.sol:VRFCoordinatorV2TestHelper",
+      accounts[0],
+    );
     vrfCoordinatorV2TestHelper = await vrfCoordinatorV2TestHelperFactory.deploy(
       linkToken.address,
       blockHashStore.address,
@@ -319,7 +325,7 @@ describe("VRFCoordinatorV2", () => {
         `TooManyConsumers()`,
       );
       // Same is true if we first create with the maximum
-      let consumers: string[] = [];
+      const consumers: string[] = [];
       for (let i = 0; i < 100; i++) {
         consumers.push(randomAddressString());
       }
@@ -491,7 +497,7 @@ describe("VRFCoordinatorV2", () => {
           BigNumber.from("-900"),
         ],
       ];
-      for (let [fn, expectedBalanceChange] of balanceChangingFns) {
+      for (const [fn, expectedBalanceChange] of balanceChangingFns) {
         const startingBalance = await vrfCoordinatorV2.s_totalBalance();
         await fn();
         const endingBalance = await vrfCoordinatorV2.s_totalBalance();
@@ -809,11 +815,11 @@ describe("VRFCoordinatorV2", () => {
     });
 
     it("non-positive link wei price should revert", async function () {
-      let mockAggregatorV3Factory = await ethers.getContractFactory(
+      const mockAggregatorV3Factory = await ethers.getContractFactory(
         "src/v0.7/tests/MockV3Aggregator.sol:MockV3Aggregator",
         owner,
       );
-      let vrfCoordinatorV2TestHelperFactory = await ethers.getContractFactory("VRFCoordinatorV2TestHelper", owner);
+      const vrfCoordinatorV2TestHelperFactory = await ethers.getContractFactory("VRFCoordinatorV2TestHelper", owner);
       const mockLinkEthZero = await mockAggregatorV3Factory.deploy(0, 0);
       const vrfCoordinatorV2TestHelperZero = await vrfCoordinatorV2TestHelperFactory.deploy(
         linkToken.address,
@@ -846,14 +852,14 @@ describe("VRFCoordinatorV2", () => {
   describe("#keyRegistration", async function () {
     it("register key emits log", async function () {
       const testKey = [BigNumber.from("1"), BigNumber.from("2")];
-      let kh = await vrfCoordinatorV2.hashOfKey(testKey);
+      const kh = await vrfCoordinatorV2.hashOfKey(testKey);
       await expect(vrfCoordinatorV2.registerProvingKey(subOwnerAddress, testKey))
         .to.emit(vrfCoordinatorV2, "ProvingKeyRegistered")
         .withArgs(kh, subOwnerAddress);
     });
     it("cannot re-register key", async function () {
       const testKey = [BigNumber.from("1"), BigNumber.from("2")];
-      let kh = await vrfCoordinatorV2.hashOfKey(testKey);
+      const kh = await vrfCoordinatorV2.hashOfKey(testKey);
       await vrfCoordinatorV2.registerProvingKey(subOwnerAddress, testKey);
       await expect(vrfCoordinatorV2.registerProvingKey(subOwnerAddress, testKey)).to.be.revertedWith(
         `ProvingKeyAlreadyRegistered("${kh}")`,
@@ -861,7 +867,7 @@ describe("VRFCoordinatorV2", () => {
     });
     it("deregister key emits log", async function () {
       const testKey = [BigNumber.from("1"), BigNumber.from("2")];
-      let kh = await vrfCoordinatorV2.hashOfKey(testKey);
+      const kh = await vrfCoordinatorV2.hashOfKey(testKey);
       await vrfCoordinatorV2.registerProvingKey(subOwnerAddress, testKey);
       await expect(vrfCoordinatorV2.deregisterProvingKey(testKey))
         .to.emit(vrfCoordinatorV2, "ProvingKeyDeregistered")
@@ -869,7 +875,7 @@ describe("VRFCoordinatorV2", () => {
     });
     it("cannot deregister unregistered key", async function () {
       const testKey = [BigNumber.from("1"), BigNumber.from("2")];
-      let kh = await vrfCoordinatorV2.hashOfKey(testKey);
+      const kh = await vrfCoordinatorV2.hashOfKey(testKey);
       await expect(vrfCoordinatorV2.deregisterProvingKey(testKey)).to.be.revertedWith(`NoSuchProvingKey("${kh}")`);
     });
     it("can register after deregister", async function () {
@@ -932,14 +938,14 @@ describe("VRFCoordinatorV2", () => {
       );
     });
     it("incorrect commitment wrong blocknum", async function () {
-      let subId = await createSubscription();
+      const subId = await createSubscription();
       await linkToken.connect(subOwner).transferAndCall(
         vrfCoordinatorV2.address,
         BigNumber.from("1000000000000000000"), // 1 link > 0.1 min.
         ethers.utils.defaultAbiCoder.encode(["uint64"], [subId]),
       );
       const testKey = [BigNumber.from("1"), BigNumber.from("2")];
-      let kh = await vrfCoordinatorV2.hashOfKey(testKey);
+      const kh = await vrfCoordinatorV2.hashOfKey(testKey);
       const tx = await vrfCoordinatorV2.connect(consumer).requestRandomWords(
         kh, // keyhash
         subId, // subId

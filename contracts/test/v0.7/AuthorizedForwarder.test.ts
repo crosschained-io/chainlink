@@ -20,8 +20,11 @@ before(async () => {
     "src/v0.4/tests/GetterSetter.sol:GetterSetter",
     roles.defaultAccount,
   );
-  forwarderFactory = await ethers.getContractFactory("AuthorizedForwarder", roles.defaultAccount);
-  linkTokenFactory = await ethers.getContractFactory("LinkToken", roles.defaultAccount);
+  forwarderFactory = await ethers.getContractFactory(
+    "src/v0.7/AuthorizedForwarder.sol:AuthorizedForwarder",
+    roles.defaultAccount,
+  );
+  linkTokenFactory = await ethers.getContractFactory("src/v0.4/LinkToken.sol:LinkToken", roles.defaultAccount);
 });
 
 describe("AuthorizedForwarder", () => {

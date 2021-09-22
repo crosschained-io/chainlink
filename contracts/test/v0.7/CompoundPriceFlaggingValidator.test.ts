@@ -15,7 +15,10 @@ let compoundOracleFactory: ContractFactory;
 before(async () => {
   personas = (await getUsers()).personas;
 
-  validatorFactory = await ethers.getContractFactory("CompoundPriceFlaggingValidator", personas.Carol);
+  validatorFactory = await ethers.getContractFactory(
+    "src/v0.7/dev/CompoundPriceFlaggingValidator.sol:CompoundPriceFlaggingValidator",
+    personas.Carol,
+  );
   acFactory = await ethers.getContractFactory(
     "src/v0.6/SimpleWriteAccessController.sol:SimpleWriteAccessController",
     personas.Carol,
@@ -25,7 +28,10 @@ before(async () => {
     "src/v0.7/tests/MockV3Aggregator.sol:MockV3Aggregator",
     personas.Carol,
   );
-  compoundOracleFactory = await ethers.getContractFactory("MockCompoundOracle", personas.Carol);
+  compoundOracleFactory = await ethers.getContractFactory(
+    "src/v0.7/tests/MockCompoundOracle.sol:MockCompoundOracle",
+    personas.Carol,
+  );
 });
 
 describe("CompoundPriceFlaggingVlidator", () => {

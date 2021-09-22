@@ -54,6 +54,7 @@ jobs:
             ${{ runner.os }}-build-
             ${{ runner.os }}-
       - run: yarn install --frozen-lockfile
+      - run: yarn workspace @chainlink/contracts compile
       - name: Run coverage
         run: ./tools/ci/solidity_coverage
 
@@ -82,5 +83,6 @@ jobs:
             ${{ runner.os }}-build-
             ${{ runner.os }}-
       - run: yarn install --frozen-lockfile
+      - run: yarn workspace @chainlink/contracts compile
       - name: Run tests
         run: ./tools/ci/solidity_test_hardhat

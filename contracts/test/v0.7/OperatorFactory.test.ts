@@ -15,10 +15,16 @@ before(async () => {
   const users = await getUsers();
 
   roles = users.roles;
-  linkTokenFactory = await ethers.getContractFactory("LinkToken", roles.defaultAccount);
-  operatorGeneratorFactory = await ethers.getContractFactory("OperatorFactory", roles.defaultAccount);
-  operatorFactory = await ethers.getContractFactory("Operator", roles.defaultAccount);
-  forwarderFactory = await ethers.getContractFactory("AuthorizedForwarder", roles.defaultAccount);
+  linkTokenFactory = await ethers.getContractFactory("src/v0.4/LinkToken.sol:LinkToken", roles.defaultAccount);
+  operatorGeneratorFactory = await ethers.getContractFactory(
+    "src/v0.7/OperatorFactory.sol:OperatorFactory",
+    roles.defaultAccount,
+  );
+  operatorFactory = await ethers.getContractFactory("src/v0.7/Operator.sol:Operator", roles.defaultAccount);
+  forwarderFactory = await ethers.getContractFactory(
+    "src/v0.7/AuthorizedForwarder.sol:AuthorizedForwarder",
+    roles.defaultAccount,
+  );
 });
 
 describe("OperatorFactory", () => {

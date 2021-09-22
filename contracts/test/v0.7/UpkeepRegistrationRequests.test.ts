@@ -286,7 +286,7 @@ describe("UpkeepRegistrationRequests", () => {
         .setRegistrationConfig(false, window_small, threshold_big, registry.address, minLINKJuels);
 
       //register with auto approve OFF
-      let abiEncodedBytes = registrar.interface.encodeFunctionData("register", [
+      const abiEncodedBytes = registrar.interface.encodeFunctionData("register", [
         upkeepName,
         emptyBytes,
         mock.address,
@@ -376,7 +376,7 @@ describe("UpkeepRegistrationRequests", () => {
         .setRegistrationConfig(false, window_small, threshold_big, registry.address, minLINKJuels);
 
       //register with auto approve OFF
-      let abiEncodedBytes = registrar.interface.encodeFunctionData("register", [
+      const abiEncodedBytes = registrar.interface.encodeFunctionData("register", [
         upkeepName,
         emptyBytes,
         mock.address,
