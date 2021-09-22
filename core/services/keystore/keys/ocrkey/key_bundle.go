@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"math/big"
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/keystore"
@@ -41,12 +40,6 @@ type (
 		CreatedAt             time.Time
 		UpdatedAt             time.Time
 		DeletedAt             gorm.DeletedAt
-	}
-
-	keyBundleRawData struct {
-		EcdsaD             big.Int
-		Ed25519PrivKey     []byte
-		OffChainEncryption [curve25519.ScalarSize]byte
 	}
 )
 
@@ -101,6 +94,7 @@ func NewKeyBundleFrom(onChainSigning io.Reader, offChainSigning io.Reader, offCh
 	if err != nil {
 		return nil, err
 	}
+	fmt.Println("marshalledPrivK 1", string(marshalledPrivK))
 	k.ID = sha256.Sum256(marshalledPrivK)
 	return k, nil
 }
