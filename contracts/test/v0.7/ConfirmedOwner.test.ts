@@ -20,7 +20,10 @@ before(async () => {
   nonOwner = personas.Neil;
   newOwner = personas.Ned;
 
-  confirmedOwnerTestHelperFactory = await ethers.getContractFactory("ConfirmedOwnerTestHelper", owner);
+  confirmedOwnerTestHelperFactory = await ethers.getContractFactory(
+    "src/v0.7/tests/ConfirmedOwnerTestHelper.sol:ConfirmedOwnerTestHelper",
+    owner,
+  );
   confirmedOwnerFactory = await ethers.getContractFactory("src/v0.7/ConfirmedOwner.sol:ConfirmedOwner", owner);
 });
 

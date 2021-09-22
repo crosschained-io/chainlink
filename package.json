@@ -1,12 +1,13 @@
 {
   "private": true,
   "license": "MIT",
-  "workspaces": [
-    "contracts",
-    "operator_ui",
-    "tools",
-    "tools/external-adapter"
-  ],
+  "workspaces": {
+    "packages": ["contracts",
+      "operator_ui",
+      "tools",
+      "tools/external-adapter"],
+    "nohoist": ["**/typechain", "**/typechain/**", "**/@typechain", "**/@typechain/**"]
+  },
   "engines": {
     "node": "^12.0.0"
   },

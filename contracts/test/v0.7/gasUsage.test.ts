@@ -16,13 +16,13 @@ before(async () => {
   const users = await getUsers();
 
   roles = users.roles;
-  operatorFactory = await ethers.getContractFactory("Operator", roles.defaultAccount);
+  operatorFactory = await ethers.getContractFactory("src/v0.7/Operator.sol:Operator", roles.defaultAccount);
   oracleFactory = await ethers.getContractFactory("src/v0.6/Oracle.sol:Oracle", roles.defaultAccount);
   basicConsumerFactory = await ethers.getContractFactory(
     "src/v0.6/tests/BasicConsumer.sol:BasicConsumer",
     roles.defaultAccount,
   );
-  linkTokenFactory = await ethers.getContractFactory("LinkToken", roles.defaultAccount);
+  linkTokenFactory = await ethers.getContractFactory("src/v0.4/LinkToken.sol:LinkToken", roles.defaultAccount);
 });
 
 describe("Operator Gas Tests [ @skip-coverage ]", () => {

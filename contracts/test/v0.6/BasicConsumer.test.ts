@@ -22,7 +22,7 @@ before(async () => {
     roles.defaultAccount,
   );
   oracleFactory = await ethers.getContractFactory("src/v0.6/Oracle.sol:Oracle", roles.oracleNode);
-  linkTokenFactory = await ethers.getContractFactory("LinkToken", roles.defaultAccount);
+  linkTokenFactory = await ethers.getContractFactory("src/v0.4/LinkToken.sol:LinkToken", roles.defaultAccount);
 });
 
 describe("BasicConsumer", () => {

@@ -14,7 +14,10 @@ let aggregatorFactory: ContractFactory;
 before(async () => {
   personas = (await getUsers()).personas;
 
-  validatorFactory = await ethers.getContractFactory("StalenessFlaggingValidator", personas.Carol);
+  validatorFactory = await ethers.getContractFactory(
+    "src/v0.7/dev/StalenessFlaggingValidator.sol:StalenessFlaggingValidator",
+    personas.Carol,
+  );
   flagsFactory = await ethers.getContractFactory("src/v0.6/Flags.sol:Flags", personas.Carol);
   acFactory = await ethers.getContractFactory(
     "src/v0.6/SimpleWriteAccessController.sol:SimpleWriteAccessController",

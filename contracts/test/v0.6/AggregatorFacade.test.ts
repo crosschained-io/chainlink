@@ -17,10 +17,13 @@ before(async () => {
   const users = await getUsers();
 
   defaultAccount = users.roles.defaultAccount;
-  linkTokenFactory = await ethers.getContractFactory("LinkToken", defaultAccount);
-  aggregatorFactory = await ethers.getContractFactory("Aggregator", defaultAccount);
+  linkTokenFactory = await ethers.getContractFactory("src/v0.4/LinkToken.sol:LinkToken", defaultAccount);
+  aggregatorFactory = await ethers.getContractFactory("src/v0.4/Aggregator.sol:Aggregator", defaultAccount);
   oracleFactory = await ethers.getContractFactory("src/v0.6/Oracle.sol:Oracle", defaultAccount);
-  aggregatorFacadeFactory = await ethers.getContractFactory("AggregatorFacade", defaultAccount);
+  aggregatorFacadeFactory = await ethers.getContractFactory(
+    "src/v0.6/AggregatorFacade.sol:AggregatorFacade",
+    defaultAccount,
+  );
 });
 
 describe("AggregatorFacade", () => {

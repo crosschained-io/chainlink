@@ -30,7 +30,7 @@ before(async () => {
     roles.defaultAccount,
   );
   oracleFactory = await ethers.getContractFactory("src/v0.4/Oracle.sol:Oracle", roles.defaultAccount);
-  linkTokenFactory = await ethers.getContractFactory("LinkToken", roles.defaultAccount);
+  linkTokenFactory = await ethers.getContractFactory("src/v0.4/LinkToken.sol:LinkToken", roles.defaultAccount);
 });
 
 describe("ChainlinkClientTestHelper", () => {

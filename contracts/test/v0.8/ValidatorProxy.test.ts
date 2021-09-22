@@ -26,7 +26,7 @@ before(async () => {
 
 describe("ValidatorProxy", () => {
   beforeEach(async () => {
-    const vpf = await ethers.getContractFactory("ValidatorProxy", owner);
+    const vpf = await ethers.getContractFactory("src/v0.8/ValidatorProxy.sol:ValidatorProxy", owner);
     validatorProxy = await vpf.deploy(aggregatorAddress, validatorAddress);
     validatorProxy = await validatorProxy.deployed();
   });
@@ -259,7 +259,7 @@ describe("ValidatorProxy", () => {
       });
 
       it("reverts when there is no validator set", async () => {
-        const vpf = await ethers.getContractFactory("ValidatorProxy", owner);
+        const vpf = await ethers.getContractFactory("src/v0.8/ValidatorProxy.sol:ValidatorProxy", owner);
         validatorProxy = await vpf.deploy(aggregatorAddress, constants.AddressZero);
         await validatorProxy.deployed();
         await expect(validatorProxy.connect(aggregator).validate(99, 88, 77, 66)).to.be.revertedWith(
@@ -272,10 +272,13 @@ describe("ValidatorProxy", () => {
       describe("from the aggregator", () => {
         let mockValidator1: Contract;
         beforeEach(async () => {
-          const mvf = await ethers.getContractFactory("MockAggregatorValidator", owner);
+          const mvf = await ethers.getContractFactory(
+            "src/v0.8/mocks/MockAggregatorValidator.sol:MockAggregatorValidator",
+            owner,
+          );
           mockValidator1 = await mvf.deploy(1);
           mockValidator1 = await mockValidator1.deployed();
-          const vpf = await ethers.getContractFactory("ValidatorProxy", owner);
+          const vpf = await ethers.getContractFactory("src/v0.8/ValidatorProxy.sol:ValidatorProxy", owner);
           validatorProxy = await vpf.deploy(aggregatorAddress, mockValidator1.address);
           validatorProxy = await validatorProxy.deployed();
         });
@@ -298,7 +301,10 @@ describe("ValidatorProxy", () => {
           let mockValidator2: Contract;
 
           beforeEach(async () => {
-            const mvf = await ethers.getContractFactory("MockAggregatorValidator", owner);
+            const mvf = await ethers.getContractFactory(
+              "src/v0.8/mocks/MockAggregatorValidator.sol:MockAggregatorValidator",
+              owner,
+            );
             mockValidator2 = await mvf.deploy(2);
             mockValidator2 = await mockValidator2.deployed();
             await validatorProxy.proposeNewValidator(mockValidator2.address);

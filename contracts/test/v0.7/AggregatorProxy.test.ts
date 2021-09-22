@@ -22,16 +22,25 @@ before(async () => {
   personas = users.personas;
   defaultAccount = users.roles.defaultAccount;
 
-  linkTokenFactory = await ethers.getContractFactory("LinkToken", defaultAccount);
+  linkTokenFactory = await ethers.getContractFactory("src/v0.4/LinkToken.sol:LinkToken", defaultAccount);
   aggregatorFactory = await ethers.getContractFactory(
     "src/v0.7/tests/MockV3Aggregator.sol:MockV3Aggregator",
     defaultAccount,
   );
-  historicAggregatorFactory = await ethers.getContractFactory("MockV2Aggregator", defaultAccount);
-  aggregatorFacadeFactory = await ethers.getContractFactory("AggregatorFacade", defaultAccount);
-  aggregatorProxyFactory = await ethers.getContractFactory("AggregatorProxy", defaultAccount);
-  fluxAggregatorFactory = await ethers.getContractFactory("FluxAggregator", defaultAccount);
-  reverterFactory = await ethers.getContractFactory("Reverter", defaultAccount);
+  historicAggregatorFactory = await ethers.getContractFactory(
+    "src/v0.7/tests/MockV2Aggregator.sol:MockV2Aggregator",
+    defaultAccount,
+  );
+  aggregatorFacadeFactory = await ethers.getContractFactory(
+    "src/v0.6/AggregatorFacade.sol:AggregatorFacade",
+    defaultAccount,
+  );
+  aggregatorProxyFactory = await ethers.getContractFactory(
+    "src/v0.7/dev/AggregatorProxy.sol:AggregatorProxy",
+    defaultAccount,
+  );
+  fluxAggregatorFactory = await ethers.getContractFactory("src/v0.6/FluxAggregator.sol:FluxAggregator", defaultAccount);
+  reverterFactory = await ethers.getContractFactory("src/v0.6/tests/Reverter.sol:Reverter", defaultAccount);
 });
 
 describe("AggregatorProxy", () => {

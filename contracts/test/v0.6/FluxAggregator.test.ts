@@ -19,14 +19,20 @@ let emptyAddress: string;
 
 before(async () => {
   personas = (await getUsers()).personas;
-  linkTokenFactory = await ethers.getContractFactory("LinkToken");
-  fluxAggregatorFactory = await ethers.getContractFactory("FluxAggregator");
-  validatorMockFactory = await ethers.getContractFactory("AggregatorValidatorMock");
-  testHelperFactory = await ethers.getContractFactory("FluxAggregatorTestHelper");
-  validatorFactory = await ethers.getContractFactory("DeviationFlaggingValidator");
+  linkTokenFactory = await ethers.getContractFactory("src/v0.4/LinkToken.sol:LinkToken");
+  fluxAggregatorFactory = await ethers.getContractFactory("src/v0.6/FluxAggregator.sol:FluxAggregator");
+  validatorMockFactory = await ethers.getContractFactory(
+    "src/v0.6/tests/AggregatorValidatorMock.sol:AggregatorValidatorMock",
+  );
+  testHelperFactory = await ethers.getContractFactory(
+    "src/v0.6/tests/FluxAggregatorTestHelper.sol:FluxAggregatorTestHelper",
+  );
+  validatorFactory = await ethers.getContractFactory(
+    "src/v0.6/DeviationFlaggingValidator.sol:DeviationFlaggingValidator",
+  );
   flagsFactory = await ethers.getContractFactory("src/v0.6/Flags.sol:Flags");
   acFactory = await ethers.getContractFactory("src/v0.6/SimpleWriteAccessController.sol:SimpleWriteAccessController");
-  gasGuzzlerFactory = await ethers.getContractFactory("GasGuzzler");
+  gasGuzzlerFactory = await ethers.getContractFactory("src/v0.6/tests/GasGuzzler.sol:GasGuzzler");
   emptyAddress = constants.AddressZero;
 });
 
