@@ -8,7 +8,7 @@ pragma solidity >0.6.0 <0.8.0;
 contract Owned {
 
   address public owner;
-  address private pendingOwner;
+  address public pendingOwner;
 
   event OwnershipTransferRequested(
     address indexed from,
