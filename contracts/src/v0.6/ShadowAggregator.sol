@@ -23,10 +23,9 @@ contract ShadowAggregator is AggregatorV3Interface, Owned {
     uint80 answeredInRound;
   }
 
-  struct OracleStatus {
-    uint80 startingRound;
-    uint80 endingRound;
+  struct Oracle {
     uint16 index;
+    bool enabled;
   }
 
   AggregatorV3Interface public aggregator;
@@ -38,20 +37,11 @@ contract ShadowAggregator is AggregatorV3Interface, Owned {
   uint80 constant private ROUND_MAX = 2**80-1;
 
   uint80 internal latestRoundId;
-  mapping(address => OracleStatus) private oracles;
+  bytes16 public configDigest;
   mapping(uint80 => Round) internal rounds;
+  mapping(address => Oracle) private oracles;
   address[] private oracleAddresses;
 
-  event AnswerUpdated(
-    int256 indexed current,
-    uint256 indexed roundId,
-    uint256 updatedAt
-  );
-  event NewRound(
-    uint256 indexed roundId,
-    address indexed startedBy,
-    uint256 startedAt
-  );
   event OraclePermissionsUpdated(
     address indexed oracle,
     bool indexed whitelisted
@@ -91,7 +81,11 @@ contract ShadowAggregator is AggregatorV3Interface, Owned {
     if (address(aggr) != address(0)) {
       return aggr.version();
     }
-    return 3;
+    return 4;
+  }
+
+  function setConfigDigest(bytes16 digest) external onlyOwner {
+    configDigest = digest;
   }
 
   function setAggregator(AggregatorV3Interface _aggregator) external onlyOwner {
@@ -99,51 +93,6 @@ contract ShadowAggregator is AggregatorV3Interface, Owned {
     owner = address(0);
     pendingOwner = address(0);
     emit OwnershipTransferred(address(0), msg.sender);
-  }
-
-  function generateKey(
-    uint256 _roundId,
-    int256 _answer,
-    uint256 _startedAt,
-    uint256 _updatedAt,
-    uint256 _answeredInRound
-  ) public view returns(bytes32) {
-    return keccak256(abi.encodePacked(address(this), _roundId, _answer, _startedAt, _updatedAt, _answeredInRound));
-  }
-
-  /**
-   * @notice called by oracles when they have witnessed a need to update
-   * @param _roundId is the ID of the round this submission pertains to
-   * @param _answer is the answer of this round
-   * @param _startedAt is the start timestamp of this round
-   * @param _updatedAt is the update timestamp of this round
-   * @param _answeredInRound is the round of the answer be set
-   * @param _signatures is the signatures from oracles
-   */
-  function submit(
-    uint256 _roundId,
-    int256 _answer,
-    uint256 _startedAt,
-    uint256 _updatedAt,
-    uint256 _answeredInRound,
-    bytes calldata _signatures
-  )
-    external
-  {
-    require(_roundId < ROUND_MAX && _answeredInRound < ROUND_MAX, "invalid round id");
-    uint80 rid = uint80(_roundId);
-    require(rid == latestRoundId + 1, "invalid round id");
-    require(verify(_roundId, _answer, _startedAt, _updatedAt, _answeredInRound, _signatures), "invalid signatures");
-    rounds[rid].startedAt = _startedAt;
-
-    emit NewRound(rid, msg.sender, rounds[rid].startedAt);
-
-    rounds[rid].answer = _answer;
-    rounds[rid].updatedAt = _updatedAt;
-    rounds[rid].answeredInRound = uint80(_answeredInRound);
-    latestRoundId = rid;
-
-    emit AnswerUpdated(_answer, rid, now);
   }
 
   function changeOracles(
@@ -159,6 +108,65 @@ contract ShadowAggregator is AggregatorV3Interface, Owned {
     require(uint256(oracleCount()).add(_added.length) <= MAX_ORACLE_COUNT, "max oracles allowed");
     for (uint256 i = 0; i < _added.length; i++) {
       addOracle(_added[i]);
+    }
+  }
+
+  /**
+   * @notice called by oracles when they have witnessed a need to update
+   * @param _roundId is the ID of the round this submission pertains to
+   * @param _timestamp is the block timestamp of the round
+   * @param _report is the observations
+   * @param _rs is the r of oracles
+   * @param _ss is the s of oracles
+   * @param _rawVs is the v of oracles
+   */
+  function submit(
+    uint256 _roundId,
+    uint256 _timestamp,
+    bytes calldata _report,
+    bytes32[] calldata _rs, bytes32[] calldata _ss, bytes32 _rawVs
+  )
+    external
+  {
+    require(_rs.length == _ss.length, "signatures out of registration");
+    require(_rs.length <= MAX_ORACLE_COUNT, "too many signatures");
+    uint80 rid = uint80(_roundId);
+    require(_roundId < ROUND_MAX && rid == latestRoundId + 1, "invalid round id");
+    {
+      bytes32 h = keccak256(_report);
+      bool[MAX_ORACLE_COUNT] memory signed;
+      Oracle memory oracle;
+      for (uint i = 0; i < _rs.length; i++) {
+        address signer = ecrecover(h, uint8(_rawVs[i])+27, _rs[i], _ss[i]);
+        oracle = oracles[signer];
+        require(oracle.enabled, "not an active oracle");
+        require(!signed[oracle.index], "non-unique signature");
+        signed[oracle.index] = true;
+      }
+    }
+    (bytes32 rawReportContext, bytes32 rawObservers, int192[] memory observations) = abi.decode(_report, (bytes32, bytes32, int192[]));
+    require(bytes16(rawReportContext << 88) == configDigest, "config digest mismatch");
+    bytes memory observers = new bytes(observations.length);
+    {
+      bool[MAX_ORACLE_COUNT] memory seen;
+      for (uint8 i = 0; i < observations.length; i++) {
+        uint8 observerIdx = uint8(rawObservers[i]);
+        require(!seen[observerIdx], "duplicate observer index");
+        seen[observerIdx] = true;
+        observers[i] = rawObservers[i];
+      }
+    }
+    {
+      for (uint8 i = 0; i < observations.length - 1; i++) {
+        bool inOrder = observations[i] <= observations[i+1];
+        require(inOrder, "observations not sorted");
+      }
+      int192 median = observations[observations.length/2];
+      rounds[rid].answer = median;
+      rounds[rid].startedAt = _timestamp;
+      rounds[rid].updatedAt = _timestamp;
+      rounds[rid].answeredInRound = rid;
+      latestRoundId = rid;
     }
   }
 
@@ -220,84 +228,10 @@ contract ShadowAggregator is AggregatorV3Interface, Owned {
     return getRoundData(latestRoundId);
   }
 
-  function verify(
-    uint256 _roundId,
-    int256 _answer,
-    uint256 _startedAt,
-    uint256 _updatedAt,
-    uint256 _answeredInRound,
-    bytes memory _signatures
-  )
-    private
-    returns (bool)
-  {
-    uint80 rid = uint80(_roundId);
-    bytes32 key = generateKey(_roundId, _answer, _startedAt, _updatedAt, _answeredInRound);
-    uint256 numOfSignatures = _signatures.length / 65;
-    address[] memory validators = new address[](numOfSignatures);
-    for (uint256 i = 0; i < numOfSignatures; i++) {
-        address oracle = recover(key, _signatures, i * 65);
-        for (uint256 j = 0; j < i; j++) {
-            require(oracle != validators[j], "duplicate oracle");
-        }
-        validators[i] = oracle;
-        bytes memory err = validateOracleRound(oracle, rid);
-        require(err.length == 0, string(err));
-
-        emit SubmissionReceived(_answer, rid, oracle);
-    }
-
-    return validators.length * 3 > validators.length * 2;
-  }
-
-  function recover(
-      bytes32 hash,
-      bytes memory signature,
-      uint256 offset
-  ) internal pure returns (address) {
-      bytes32 r;
-      bytes32 s;
-      uint8 v;
-
-      // Divide the signature in r, s and v variables with inline assembly.
-
-      // solium-disable-next-line security/no-inline-assembly
-      assembly {
-          r := mload(add(signature, add(offset, 0x20)))
-          s := mload(add(signature, add(offset, 0x40)))
-          v := byte(0, mload(add(signature, add(offset, 0x60))))
-      }
-
-      // Version of signature should be 27 or 28, but 0 and 1 are also possible versions
-      if (v < 27) {
-          v += 27;
-      }
-
-      // If the version is correct return the signer address
-      if (v != 27 && v != 28) {
-          return (address(0));
-      }
-      // solium-disable-next-line arg-overflow
-      return ecrecover(hash, v, r, s);
-  }
-
-  function getStartingRound(address _oracle)
-    private
-    view
-    returns (uint80)
-  {
-    uint80 currentRound = latestRoundId;
-    if (currentRound != 0 && currentRound == oracles[_oracle].endingRound) {
-      return currentRound;
-    }
-    return currentRound + 1;
-  }
-
   function addOracle(address _oracle) private {
-    require(!oracleEnabled(_oracle), "oracle already enabled");
+    require(!oracles[_oracle].enabled, "oracle already enabled");
 
-    oracles[_oracle].startingRound = getStartingRound(_oracle);
-    oracles[_oracle].endingRound = ROUND_MAX;
+    oracles[_oracle].enabled = true;
     oracles[_oracle].index = uint16(oracleAddresses.length);
     oracleAddresses.push(_oracle);
 
@@ -305,37 +239,16 @@ contract ShadowAggregator is AggregatorV3Interface, Owned {
   }
 
   function removeOracle(address _oracle) private {
-    require(oracleEnabled(_oracle), "oracle not enabled");
+    require(oracles[_oracle].enabled, "oracle not enabled");
 
-    oracles[_oracle].endingRound = latestRoundId + 1;
     address tail = oracleAddresses[uint256(oracleCount()).sub(1)];
     uint16 index = oracles[_oracle].index;
+    oracles[_oracle].enabled = false;
     oracles[tail].index = index;
     delete oracles[_oracle].index;
     oracleAddresses[index] = tail;
     oracleAddresses.pop();
 
     emit OraclePermissionsUpdated(_oracle, false);
-  }
-
-  function validateOracleRound(address _oracle, uint80 _roundId)
-    private
-    view
-    returns (bytes memory)
-  {
-    // cache storage reads
-    uint80 startingRound = oracles[_oracle].startingRound;
-
-    if (startingRound == 0) return "not enabled oracle";
-    if (startingRound > _roundId) return "not yet enabled oracle";
-    if (oracles[_oracle].endingRound < _roundId) return "no longer allowed oracle";
-  }
-
-  function oracleEnabled(address _oracle)
-    private
-    view
-    returns (bool)
-  {
-    return oracles[_oracle].endingRound == ROUND_MAX;
   }
 }
