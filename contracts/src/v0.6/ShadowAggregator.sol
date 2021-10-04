@@ -16,6 +16,8 @@ import "./vendor/SafeMathChainlink.sol";
 contract ShadowAggregator is AggregatorV3Interface, Owned {
   using SafeMathChainlink for uint256;
 
+  enum Role{Unset, Transmitter, Signer}
+
   struct Round {
     int256 answer;
     uint256 startedAt;
@@ -25,7 +27,7 @@ contract ShadowAggregator is AggregatorV3Interface, Owned {
 
   struct Oracle {
     uint16 index;
-    bool enabled;
+    Role role;
   }
 
   AggregatorV3Interface public aggregator;
@@ -42,6 +44,8 @@ contract ShadowAggregator is AggregatorV3Interface, Owned {
   mapping(address => Oracle) private oracles;
   address[] private oracleAddresses;
 
+  address public operator;
+
   event OraclePermissionsUpdated(
     address indexed oracle,
     bool indexed whitelisted
@@ -51,6 +55,7 @@ contract ShadowAggregator is AggregatorV3Interface, Owned {
     uint80 indexed round,
     address indexed oracle
   );
+  event OperatorSet(address indexed operator);
 
   constructor(
     uint8 _decimals,
@@ -58,6 +63,7 @@ contract ShadowAggregator is AggregatorV3Interface, Owned {
   ) public {
     dcls = _decimals;
     desc = _description;
+    setOperator(msg.sender);
   }
 
   function decimals() external override view returns (uint8) {
@@ -84,6 +90,11 @@ contract ShadowAggregator is AggregatorV3Interface, Owned {
     return 4;
   }
 
+  function setOperator(address _operator) public onlyOwner {
+    operator = _operator;
+    emit OperatorSet(_operator);
+  }
+
   function setConfigDigest(bytes16 digest) external onlyOwner {
     configDigest = digest;
   }
@@ -97,7 +108,8 @@ contract ShadowAggregator is AggregatorV3Interface, Owned {
 
   function changeOracles(
     address[] calldata _removed,
-    address[] calldata _added
+    address[] calldata _added,
+    Role[] calldata _roles
   )
     external
     onlyOwner()
@@ -106,8 +118,9 @@ contract ShadowAggregator is AggregatorV3Interface, Owned {
       removeOracle(_removed[i]);
     }
     require(uint256(oracleCount()).add(_added.length) <= MAX_ORACLE_COUNT, "max oracles allowed");
+    require(_added.length == _roles.length, "length of roles is different from added");
     for (uint256 i = 0; i < _added.length; i++) {
-      addOracle(_added[i]);
+      addOracle(_added[i], _roles[i]);
     }
   }
 
@@ -128,6 +141,7 @@ contract ShadowAggregator is AggregatorV3Interface, Owned {
   )
     external
   {
+    require(operator == msg.sender, "not an operator");
     require(_rs.length == _ss.length, "signatures out of registration");
     require(_rs.length <= MAX_ORACLE_COUNT, "too many signatures");
     uint80 rid = uint80(_roundId);
@@ -139,7 +153,7 @@ contract ShadowAggregator is AggregatorV3Interface, Owned {
       for (uint i = 0; i < _rs.length; i++) {
         address signer = ecrecover(h, uint8(_rawVs[i])+27, _rs[i], _ss[i]);
         oracle = oracles[signer];
-        require(oracle.enabled, "not an active oracle");
+        require(oracle.role != Role.Signer, "not an active oracle");
         require(!signed[oracle.index], "non-unique signature");
         signed[oracle.index] = true;
       }
@@ -228,10 +242,10 @@ contract ShadowAggregator is AggregatorV3Interface, Owned {
     return getRoundData(latestRoundId);
   }
 
-  function addOracle(address _oracle) private {
-    require(!oracles[_oracle].enabled, "oracle already enabled");
+  function addOracle(address _oracle, Role role) private {
+    require(oracles[_oracle].role == Role.Unset, "oracle already has been set");
 
-    oracles[_oracle].enabled = true;
+    oracles[_oracle].role = role;
     oracles[_oracle].index = uint16(oracleAddresses.length);
     oracleAddresses.push(_oracle);
 
@@ -239,11 +253,11 @@ contract ShadowAggregator is AggregatorV3Interface, Owned {
   }
 
   function removeOracle(address _oracle) private {
-    require(oracles[_oracle].enabled, "oracle not enabled");
+    require(oracles[_oracle].role != Role.Unset, "oracle is not set");
 
     address tail = oracleAddresses[uint256(oracleCount()).sub(1)];
     uint16 index = oracles[_oracle].index;
-    oracles[_oracle].enabled = false;
+    oracles[_oracle].role = Role.Unset;
     oracles[tail].index = index;
     delete oracles[_oracle].index;
     oracleAddresses[index] = tail;
