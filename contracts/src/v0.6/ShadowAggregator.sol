@@ -38,6 +38,7 @@ contract ShadowAggregator is AggregatorV3Interface, Owned {
   uint256 constant private MAX_ORACLE_COUNT = 25;
   uint80 constant private ROUND_MAX = 2**80-1;
 
+  uint40 internal latestEpochAndRound;
   uint80 internal latestRoundId;
   bytes16 public configDigest;
   mapping(uint80 => Round) internal rounds;
@@ -160,6 +161,8 @@ contract ShadowAggregator is AggregatorV3Interface, Owned {
     }
     (bytes32 rawReportContext, bytes32 rawObservers, int192[] memory observations) = abi.decode(_report, (bytes32, bytes32, int192[]));
     require(bytes16(rawReportContext << 88) == configDigest, "config digest mismatch");
+    uint40 epochAndRound = uint40(uint256(rawReportContext));
+    require(latestEpochAndRound < epochAndRound, "stale report");
     bytes memory observers = new bytes(observations.length);
     {
       bool[MAX_ORACLE_COUNT] memory seen;
@@ -170,18 +173,17 @@ contract ShadowAggregator is AggregatorV3Interface, Owned {
         observers[i] = rawObservers[i];
       }
     }
-    {
-      for (uint8 i = 0; i < observations.length - 1; i++) {
-        bool inOrder = observations[i] <= observations[i+1];
-        require(inOrder, "observations not sorted");
-      }
-      int192 median = observations[observations.length/2];
-      rounds[rid].answer = median;
-      rounds[rid].startedAt = _timestamp;
-      rounds[rid].updatedAt = _timestamp;
-      rounds[rid].answeredInRound = rid;
-      latestRoundId = rid;
+    for (uint8 i = 0; i < observations.length - 1; i++) {
+      bool inOrder = observations[i] <= observations[i+1];
+      require(inOrder, "observations not sorted");
     }
+    int192 median = observations[observations.length/2];
+    rounds[rid].answer = median;
+    rounds[rid].startedAt = _timestamp;
+    rounds[rid].updatedAt = _timestamp;
+    rounds[rid].answeredInRound = rid;
+    latestRoundId = rid;
+    latestEpochAndRound = epochAndRound;
   }
 
   function oracleCount() public view returns (uint8) {
