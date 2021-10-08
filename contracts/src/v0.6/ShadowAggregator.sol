@@ -170,16 +170,12 @@ contract ShadowAggregator is AggregatorV3Interface, Owned {
 
   /**
    * @notice called by oracles when they have witnessed a need to update
-   * @param _roundId is the ID of the round this submission pertains to
-   * @param _timestamp is the block timestamp of the round
    * @param _report is the observations
    * @param _rs is the r of oracles
    * @param _ss is the s of oracles
    * @param _rawVs is the v of oracles
    */
   function submit(
-    uint256 _roundId,
-    uint256 _timestamp,
     bytes calldata _report,
     bytes32[] calldata _rs, bytes32[] calldata _ss, bytes32 _rawVs
   )
@@ -187,8 +183,6 @@ contract ShadowAggregator is AggregatorV3Interface, Owned {
   {
     require(_rs.length == _ss.length, "signatures out of registration");
     require(_rs.length <= MAX_ORACLE_COUNT, "too many signatures");
-    uint80 rid = uint80(_roundId);
-    require(_roundId < ROUND_MAX && (latestRoundId == 0 || rid == latestRoundId + 1), "invalid round id");
     {
       bytes32 h = keccak256(_report);
       bool[MAX_ORACLE_COUNT] memory signed;
@@ -220,9 +214,10 @@ contract ShadowAggregator is AggregatorV3Interface, Owned {
       require(inOrder, "observations not sorted");
     }
     int192 median = observations[observations.length/2];
+    uint80 rid = latestRoundId + 1;
     rounds[rid].answer = median;
-    rounds[rid].startedAt = _timestamp;
-    rounds[rid].updatedAt = _timestamp;
+    rounds[rid].startedAt = block.timestamp;
+    rounds[rid].updatedAt = block.timestamp;
     rounds[rid].answeredInRound = rid;
     latestRoundId = rid;
     latestEpochAndRound = epochAndRound;
