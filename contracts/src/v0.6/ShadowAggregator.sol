@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.6.6;
 
-import "./Median.sol";
 import "./Owned.sol";
 import "./interfaces/AggregatorV3Interface.sol";
 import "./vendor/SafeMathChainlink.sol";
@@ -34,34 +33,32 @@ contract ShadowAggregator is AggregatorV3Interface, Owned {
 
   uint8 private dcls;
   string private desc;
+  address public originAggregator;
 
-  uint256 constant private MAX_ORACLE_COUNT = 25;
+  uint256 constant private MAX_ORACLE_COUNT = 31;
   uint80 constant private ROUND_MAX = 2**80-1;
 
   uint40 internal latestEpochAndRound;
-  uint80 internal latestRoundId;
+  uint80 public latestRoundId;
   bytes16 public configDigest;
+  uint32 public configCount;
   mapping(uint80 => Round) internal rounds;
-  mapping(address => Oracle) private oracles;
-  address[] private oracleAddresses;
+  mapping(address => Oracle) public oracles;
+  address[] private signers;
+  address[] private transmitters;
 
-  address public operator;
-
-  event OraclePermissionsUpdated(
-    address indexed oracle,
-    bool indexed whitelisted
-  );
   event SubmissionReceived(
     int256 indexed submission,
     uint80 indexed round,
     address indexed oracle
   );
-  event OperatorSet(address indexed operator);
 
   constructor(
+    address _origin,
     uint8 _decimals,
     string memory _description
   ) public {
+    originAggregator = _origin;
     dcls = _decimals;
     desc = _description;
     setOperator(msg.sender);
@@ -91,13 +88,8 @@ contract ShadowAggregator is AggregatorV3Interface, Owned {
     return 4;
   }
 
-  function setOperator(address _operator) public onlyOwner {
-    operator = _operator;
-    emit OperatorSet(_operator);
-  }
-
-  function setConfigDigest(bytes16 digest) external onlyOwner {
-    configDigest = digest;
+  function setConfigCount(uint32 _count) external onlyOwner {
+    configCount = _count;
   }
 
   function setAggregator(AggregatorV3Interface _aggregator) external onlyOwner {
@@ -107,22 +99,73 @@ contract ShadowAggregator is AggregatorV3Interface, Owned {
     emit OwnershipTransferred(address(0), msg.sender);
   }
 
-  function changeOracles(
-    address[] calldata _removed,
-    address[] calldata _added,
-    Role[] calldata _roles
+  /**
+   * @notice sets offchain reporting protocol configuration incl. participating oracles
+   * @param _signers addresses with which oracles sign the reports
+   * @param _transmitters addresses oracles use to transmit the reports
+   * @param _threshold number of faulty oracles the system can tolerate
+   * @param _encodedConfigVersion version number for offchainEncoding schema
+   * @param _encoded encoded off-chain oracle configuration
+   */
+  function setConfig(
+    address[] calldata _signers,
+    address[] calldata _transmitters,
+    uint8 _threshold,
+    uint64 _encodedConfigVersion,
+    bytes calldata _encoded
   )
     external
     onlyOwner()
   {
-    for (uint256 i = 0; i < _removed.length; i++) {
-      removeOracle(_removed[i]);
+    while (signers.length != 0) { // remove any old signer/transmitter addresses
+      uint lastIdx = signers.length - 1;
+      address signer = signers[lastIdx];
+      address transmitter = transmitters[lastIdx];
+      delete oracles[signer];
+      delete oracles[transmitter];
+      signers.pop();
+      transmitters.pop();
     }
-    require(uint256(oracleCount()).add(_added.length) <= MAX_ORACLE_COUNT, "max oracles allowed");
-    require(_added.length == _roles.length, "length of roles is different from added");
-    for (uint256 i = 0; i < _added.length; i++) {
-      addOracle(_added[i], _roles[i]);
+
+    for (uint i = 0; i < _signers.length; i++) { // add new signer/transmitter addresses
+      require(
+        oracles[_signers[i]].role == Role.Unset,
+        "repeated signer address"
+      );
+      oracles[_signers[i]] = Oracle(uint8(i), Role.Signer);
+      require(
+        oracles[_transmitters[i]].role == Role.Unset,
+        "repeated transmitter address"
+      );
+      oracles[_transmitters[i]] = Oracle(uint8(i), Role.Transmitter);
+      signers.push(_signers[i]);
+      transmitters.push(_transmitters[i]);
     }
+    configCount += 1;
+    configDigest = configDigestFromConfigData(
+      originAggregator,
+      configCount,
+      _signers,
+      _transmitters,
+      _threshold,
+      _encodedConfigVersion,
+      _encoded
+    );
+    latestEpochAndRound = 0;
+  }
+
+  function configDigestFromConfigData(
+    address _contractAddress,
+    uint64 _configCount,
+    address[] memory _signers,
+    address[] memory _transmitters,
+    uint8 _threshold,
+    uint64 _encodedConfigVersion,
+    bytes memory _encodedConfig
+  ) internal pure returns (bytes16) {
+    return bytes16(keccak256(abi.encode(_contractAddress, _configCount,
+      _signers, _transmitters, _threshold, _encodedConfigVersion, _encodedConfig
+    )));
   }
 
   /**
@@ -142,11 +185,10 @@ contract ShadowAggregator is AggregatorV3Interface, Owned {
   )
     external
   {
-    require(operator == msg.sender, "not an operator");
     require(_rs.length == _ss.length, "signatures out of registration");
     require(_rs.length <= MAX_ORACLE_COUNT, "too many signatures");
     uint80 rid = uint80(_roundId);
-    require(_roundId < ROUND_MAX && rid == latestRoundId + 1, "invalid round id");
+    require(_roundId < ROUND_MAX && (latestRoundId == 0 || rid == latestRoundId + 1), "invalid round id");
     {
       bytes32 h = keccak256(_report);
       bool[MAX_ORACLE_COUNT] memory signed;
@@ -154,7 +196,7 @@ contract ShadowAggregator is AggregatorV3Interface, Owned {
       for (uint i = 0; i < _rs.length; i++) {
         address signer = ecrecover(h, uint8(_rawVs[i])+27, _rs[i], _ss[i]);
         oracle = oracles[signer];
-        require(oracle.role != Role.Signer, "not an active oracle");
+        require(oracle.role == Role.Signer, "not an active oracle");
         require(!signed[oracle.index], "non-unique signature");
         signed[oracle.index] = true;
       }
@@ -187,11 +229,11 @@ contract ShadowAggregator is AggregatorV3Interface, Owned {
   }
 
   function oracleCount() public view returns (uint8) {
-    return uint8(oracleAddresses.length);
+    return uint8(signers.length);
   }
 
   function getOracles() external view returns (address[] memory) {
-    return oracleAddresses;
+    return signers;
   }
 
   function getRoundData(uint80 _roundId)
@@ -242,29 +284,5 @@ contract ShadowAggregator is AggregatorV3Interface, Owned {
       return aggr.latestRoundData();
     }
     return getRoundData(latestRoundId);
-  }
-
-  function addOracle(address _oracle, Role role) private {
-    require(oracles[_oracle].role == Role.Unset, "oracle already has been set");
-
-    oracles[_oracle].role = role;
-    oracles[_oracle].index = uint16(oracleAddresses.length);
-    oracleAddresses.push(_oracle);
-
-    emit OraclePermissionsUpdated(_oracle, true);
-  }
-
-  function removeOracle(address _oracle) private {
-    require(oracles[_oracle].role != Role.Unset, "oracle is not set");
-
-    address tail = oracleAddresses[uint256(oracleCount()).sub(1)];
-    uint16 index = oracles[_oracle].index;
-    oracles[_oracle].role = Role.Unset;
-    oracles[tail].index = index;
-    delete oracles[_oracle].index;
-    oracleAddresses[index] = tail;
-    oracleAddresses.pop();
-
-    emit OraclePermissionsUpdated(_oracle, false);
   }
 }
