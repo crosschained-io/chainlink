@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.6.6;
 
-import "./Owned.sol";
+import "./vendor/Ownable.sol";
 import "./interfaces/AggregatorV3Interface.sol";
 import "./vendor/SafeMathChainlink.sol";
 
@@ -12,7 +12,7 @@ import "./vendor/SafeMathChainlink.sol";
  * single answer. The latest aggregated answer is exposed as well as historical
  * answers and their updated at timestamp.
  */
-contract ShadowAggregator is AggregatorV3Interface, Owned {
+contract ShadowAggregator is AggregatorV3Interface, Ownable {
   using SafeMathChainlink for uint256;
 
   enum Role{Unset, Transmitter, Signer}
@@ -61,7 +61,6 @@ contract ShadowAggregator is AggregatorV3Interface, Owned {
     originAggregator = _origin;
     dcls = _decimals;
     desc = _description;
-    setOperator(msg.sender);
   }
 
   function decimals() external override view returns (uint8) {
@@ -94,9 +93,6 @@ contract ShadowAggregator is AggregatorV3Interface, Owned {
 
   function setAggregator(AggregatorV3Interface _aggregator) external onlyOwner {
     aggregator = _aggregator;
-    owner = address(0);
-    pendingOwner = address(0);
-    emit OwnershipTransferred(address(0), msg.sender);
   }
 
   /**
